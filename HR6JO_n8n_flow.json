@@ -1,0 +1,155 @@
+{
+  "name": "HR6JO",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-dashboard-report",
+        "responseMode": "lastNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -576,
+        -384
+      ],
+      "id": "2db03e28-9405-40e0-96a7-b8e1d40802bd",
+      "name": "Webhook",
+      "webhookId": "9ec37e28-828c-4fa7-a0a7-875ccf5015cd",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code 노드: HTML 형태 이메일 생성\n\nconst recipient = $input.first().json.body.recipient;\nconst reportData = $input.first().json.body.reportData || {};\nconst timestamp = new Date().toLocaleString('ko-KR');\n\n// HTML 이메일 본문 생성 (실제 대시보드와 유사한 스타일)\nconst htmlEmail = `\n<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <title>근무데이터 분석 리포트</title>\n    <style>\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;\n            line-height: 1.6;\n            color: #1f2937;\n            background-color: #f3f4f6;\n            margin: 0;\n            padding: 20px;\n        }\n        .container {\n            max-width: 800px;\n            margin: 0 auto;\n            background: white;\n            border-radius: 12px;\n            overflow: hidden;\n            box-shadow: 0 4px 6px rgba(0,0,0,0.1);\n        }\n        .header {\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            color: white;\n            padding: 30px;\n            text-align: center;\n        }\n        .header h1 {\n            margin: 0 0 10px 0;\n            font-size: 2.2em;\n        }\n        .header p {\n            margin: 0;\n            opacity: 0.9;\n        }\n        .content {\n            padding: 30px;\n        }\n        .kpi-grid {\n            display: grid;\n            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\n            gap: 20px;\n            margin-bottom: 30px;\n        }\n        .kpi-card {\n            background: #f8fafc;\n            border: 1px solid #e2e8f0;\n            border-radius: 8px;\n            padding: 20px;\n            text-align: center;\n        }\n        .kpi-value {\n            font-size: 2em;\n            font-weight: bold;\n            color: #3b82f6;\n            margin-bottom: 5px;\n        }\n        .kpi-label {\n            color: #64748b;\n            font-size: 0.9em;\n        }\n        .section {\n            margin-bottom: 30px;\n        }\n        .section h2 {\n            color: #1e293b;\n            border-bottom: 2px solid #e2e8f0;\n            padding-bottom: 10px;\n            margin-bottom: 20px;\n        }\n        .alert-danger {\n            background: #fef2f2;\n            border: 1px solid #fecaca;\n            border-left: 4px solid #ef4444;\n            padding: 20px;\n            border-radius: 6px;\n            margin: 20px 0;\n        }\n        .alert-success {\n            background: #f0fdf4;\n            border: 1px solid #bbf7d0;\n            border-left: 4px solid #22c55e;\n            padding: 20px;\n            border-radius: 6px;\n            margin: 20px 0;\n        }\n        .management-list {\n            list-style: none;\n            padding: 0;\n        }\n        .management-item {\n            background: #fff7ed;\n            border: 1px solid #fed7aa;\n            border-radius: 6px;\n            padding: 12px;\n            margin-bottom: 8px;\n            display: flex;\n            align-items: center;\n        }\n        .status-icon {\n            margin-right: 10px;\n            font-size: 1.2em;\n        }\n        .dept-stats {\n            background: #f8fafc;\n            border-radius: 8px;\n            padding: 15px;\n        }\n        .dept-item {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            padding: 8px 0;\n            border-bottom: 1px solid #e2e8f0;\n        }\n        .dept-item:last-child {\n            border-bottom: none;\n        }\n        .footer {\n            background: #f8fafc;\n            padding: 20px;\n            text-align: center;\n            color: #64748b;\n            font-size: 0.9em;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>📊 근무데이터 분석 리포트</h1>\n            <p>자동 생성 리포트 • ${timestamp}</p>\n        </div>\n        \n        <div class=\"content\">\n            ${generateKPISection(reportData.kpis)}\n            \n            ${generateDepartmentSection(reportData.departmentStats)}\n            \n            ${generateTeamSection(reportData.teamStats)}\n            \n            ${generateManagementSection(reportData.managementNeeded)}\n            \n            ${generateFiltersSection(reportData.filters)}\n        </div>\n        \n        <div class=\"footer\">\n            <p>💡 이 리포트는 자동으로 생성되었습니다.</p>\n            <p>❓ 문의사항이 있으시면 인사팀으로 연락주세요.</p>\n        </div>\n    </div>\n</body>\n</html>\n`;\n\n// KPI 섹션 생성 함수\nfunction generateKPISection(kpis) {\n    if (!kpis || kpis.length === 0) {\n        return '<div class=\"section\"><h2>📈 주요 지표</h2><p>데이터가 없습니다.</p></div>';\n    }\n    \n    const kpiCards = kpis.map(kpi => `\n        <div class=\"kpi-card\">\n            <div class=\"kpi-value\">${kpi.value}</div>\n            <div class=\"kpi-label\">${kpi.label}</div>\n        </div>\n    `).join('');\n    \n    return `\n        <div class=\"section\">\n            <h2>📈 주요 지표</h2>\n            <div class=\"kpi-grid\">\n                ${kpiCards}\n            </div>\n        </div>\n    `;\n}\n\n// 부서별 현황 섹션 생성 함수\nfunction generateDepartmentSection(departmentStats) {\n    if (!departmentStats || departmentStats.length === 0) {\n        return '';\n    }\n    \n    const deptItems = departmentStats.map(dept => `\n        <div class=\"dept-item\">\n            <span><strong>${dept.department}&nbsp;&nbsp;</strong></span>\n            <span>${dept.avgHoursPerEmployee}시간</span>\n        </div>\n    `).join('');\n    \n    return `\n        <div class=\"section\">\n            <h2>🏢 부서별 평균 근무시간</h2>\n            <div class=\"dept-stats\">\n                ${deptItems}\n            </div>\n        </div>\n    `;\n}\n\n// 팀별 현황 섹션 생성 함수\nfunction generateTeamSection(teamStats) {\n    if (!teamStats || teamStats.length === 0) {\n        return '';\n    }\n    \n    const teamItems = teamStats.map(team => `\n        <div class=\"dept-item\">\n            <span><strong>${team.team}&nbsp;&nbsp;</strong></span>\n            <span>${team.avgHours}시간</span>\n        </div>\n    `).join('');\n    \n    return `\n        <div class=\"section\">\n            <h2>👥 팀별 평균 근무시간</h2>\n            <div class=\"dept-stats\">\n                ${teamItems}\n            </div>\n        </div>\n    `;\n}\n\n// 관리 필요 대상자 섹션 생성 함수\nfunction generateManagementSection(managementNeeded) {\n    if (!managementNeeded || managementNeeded.length === 0) {\n        return `\n            <div class=\"alert-success\">\n                <h3 style=\"margin-top: 0; color: #166534;\">✅ 관리 필요 대상자 없음</h3>\n                <p style=\"margin-bottom: 0;\">현재 관리가 필요한 직원이 없습니다. 모든 직원이 적정 근무시간을 유지하고 있습니다.</p>\n            </div>\n        `;\n    }\n    \n    const managementItems = managementNeeded.slice(0, 10).map(emp => `\n        <li class=\"management-item\">\n            <span class=\"status-icon\">⚠️</span>\n            <div>\n                <strong>${emp.name || emp.empId || '이름없음'}</strong>\n                <span style=\"color: #64748b;\"> - ${emp.department || '부서없음'}</span>\n                <span style=\"color: #dc2626; font-weight: 500;\"> (${emp.workHours || '시간미상'})</span>\n                ${emp.reasons ? `<br><small style=\"color: #64748b;\">사유: ${emp.reasons}</small>` : ''}\n            </div>\n        </li>\n    `).join('');\n    \n    const extraCount = managementNeeded.length > 10 ? managementNeeded.length - 10 : 0;\n    \n    return `\n        <div class=\"alert-danger\">\n            <h3 style=\"margin-top: 0; color: #dc2626;\">⚠️ 관리 필요 대상자 (${managementNeeded.length}명)</h3>\n            <ul class=\"management-list\">\n                ${managementItems}\n                ${extraCount > 0 ? `<li class=\"management-item\" style=\"background: #f3f4f6;\"><span class=\"status-icon\">📋</span><div>... 외 ${extraCount}명 더</div></li>` : ''}\n            </ul>\n        </div>\n    `;\n}\n\n// 필터 섹션 생성 함수\nfunction generateFiltersSection(filters) {\n    if (!filters) return '';\n    \n    const activeFilters = [];\n    if (filters.department && filters.department !== '전체') activeFilters.push(`부서: ${filters.department}`);\n    if (filters.team && filters.team !== '전체') activeFilters.push(`팀: ${filters.team}`);\n    if (filters.workType && filters.workType !== '전체') activeFilters.push(`근무유형: ${filters.workType}`);\n    if (filters.shift && filters.shift !== '전체') activeFilters.push(`근무조: ${filters.shift}`);\n    \n    if (activeFilters.length === 0) return '';\n    \n    return `\n        <div class=\"section\">\n            <h2>🔍 적용된 필터</h2>\n            <div style=\"background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px;\">\n                ${activeFilters.map(filter => `<span style=\"background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; margin-right: 8px; font-size: 0.9em;\">${filter}</span>`).join('')}\n            </div>\n        </div>\n    `;\n}\n\n// 이메일 제목 생성\nconst managementCount = reportData.managementNeeded ? reportData.managementNeeded.length : 0;\nconst alertLevel = managementCount > 5 ? '🚨 긴급' : managementCount > 0 ? '⚠️ 주의' : '✅ 양호';\nconst subject = `${alertLevel} 근무분석 리포트 - ${new Date().toLocaleDateString('ko-KR')} (관리대상: ${managementCount}명)`;\n\n// 결과 반환\nreturn {\n    to: recipient,\n    subject: subject,\n    body: htmlEmail,\n    isHtml: true  // HTML 형태임을 표시\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        -384
+      ],
+      "id": "c0094a4a-e784-4369-9d21-f9d3693d50a1",
+      "name": "Code_html"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Code_html').item.json.to }}",
+        "subject": "={{ $('Code_html').item.json.subject }}",
+        "message": "={{ $json.content[0].text + \"\\n\" + $('Code_html').item.json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        -384
+      ],
+      "id": "18d93053-da2b-4769-8a29-687d7df1f35d",
+      "name": "Send a message",
+      "webhookId": "a830e800-ac42-4a7c-8df8-9a07dc351281",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZfjS1aownJke4NPB",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-20250514",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-20250514"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=제공된 자료에 대해서 HR전문가 의견이 필요해.\n1. 관리가 필요한 인원이 있다면 의견을 세줄로 작성해줘, 이때 텍스트로만 간단하게 작성\n\n아래는 분석된 코드 내용이야.\n---\n{{ $json.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        -384
+      ],
+      "id": "459675f5-4593-470e-8686-3645f51ba5a5",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "L3RrHvP2BFqBBgkt",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code_html",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_html": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "87d76914-bdde-4294-abf8-2557e9ddf3a5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b08f188d80f29f042aa6e1ac9ada6a920b74e5b44c574a46ee687bc313876758"
+  },
+  "id": "ni6MEoi6yCYIFpX3",
+  "tags": []
+}
