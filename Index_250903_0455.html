@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>근무데이터 분석 대시보드</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .upload-area {
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 60px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+
+        .upload-area.drag-over {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .upload-area h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #1f2937;
+        }
+
+        .upload-area p {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #2563eb;
+        }
+
+        .filters {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .filters h3 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+
+        .filter-group select {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .kpi-icon {
+            font-size: 2.5rem;
+            margin-right: 20px;
+            padding: 15px;
+            border-radius: 50%;
+        }
+
+        .kpi-content h4 {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .kpi-content .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .management-table {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .management-table h3 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            color: #dc2626;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .status-danger {
+            color: #dc2626;
+        }
+
+        .status-warning {
+            color: #d97706;
+        }
+
+        .reason-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin: 2px;
+        }
+
+        .reason-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .reason-warning {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .reason-info {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        .legend-section h5 {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>📊 근무데이터 분석 대시보드</h1>
+            <p>전사 담당자 종합 현황 분석 도구</p>
+        </div>
+
+        <!-- 파일 업로드 -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <h3>근무데이터 파일 업로드</h3>
+            <p>Excel (.xlsx, .xls) 또는 CSV 파일을 드래그하거나 클릭하여 업로드하세요</p>
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
+        </div>
+
+        <!-- 로딩 -->
+        <div class="loading hidden" id="loading">
+            <div style="font-size: 2rem; margin-bottom: 10px;">⏳</div>
+            <p>데이터를 분석하고 있습니다...</p>
+        </div>
+
+        <!-- 대시보드 -->
+        <div class="dashboard" id="dashboard">
+
+
+
+
+
+
+
+<!-- 여기에 리포트 발송 HTML 추가 -->
+<div class="report-sender" id="reportSender" style="display: none;">
+    <div style="background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <!-- 접힌 상태의 헤더 -->
+        <div id="reportHeader" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleReportSender()">
+            <h3 style="margin: 0; font-size: 1.1rem; color: #1f2937;">📤 리포트 발송</h3>
+            <button id="toggleReportBtn" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                펼치기
+            </button>
+        </div>
+        
+        <!-- 펼쳐지는 내용 -->
+        <div id="reportContent" style="display: none; margin-top: 15px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+            <!-- 리본 메뉴 -->
+            <div style="display: flex; gap: 2px; margin-bottom: 15px; background: #f3f4f6; border-radius: 6px; padding: 3px;">
+                <button id="managerSendBtn" class="ribbon-btn" onclick="switchSendMode('manager')"
+                        style="flex: 1; padding: 8px 12px; border: none; border-radius: 4px; background: white; color: #374151; font-weight: 500; cursor: pointer; font-size: 13px;">
+                    👨‍💼 담당 발송
+                </button>
+                <button id="teamLeaderSendBtn" class="ribbon-btn" onclick="switchSendMode('teamLeader')"
+                        style="flex: 1; padding: 8px 12px; border: none; border-radius: 4px; background: transparent; color: #6b7280; font-weight: 500; cursor: pointer; font-size: 13px;">
+                    👨‍💻 팀장 발송
+                </button>
+                <button id="customSendBtn" class="ribbon-btn" onclick="switchSendMode('custom')"
+                        style="flex: 1; padding: 8px 12px; border: none; border-radius: 4px; background: transparent; color: #6b7280; font-weight: 500; cursor: pointer; font-size: 13px;">
+                    ✏️ 직접 입력
+                </button>
+            </div>
+            
+            <!-- 설명 영역 -->
+            <div id="modeDescription">
+                <div id="managerDesc" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #3b82f6; margin-bottom: 10px; font-size: 12px;">
+                    <p style="margin: 0; color: #374151;"><strong>담당 발송:</strong> 선택된 부서의 담당자에게 리포트를 발송합니다.</p>
+                </div>
+                <div id="teamLeaderDesc" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981; margin-bottom: 10px; display: none; font-size: 12px;">
+                    <p style="margin: 0; color: #374151;"><strong>팀장 발송:</strong> 선택된 팀의 팀장에게 리포트를 발송합니다.</p>
+                </div>
+                <div id="customDesc" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #f59e0b; margin-bottom: 10px; display: none; font-size: 12px;">
+                    <p style="margin: 0; color: #374151;"><strong>직접 입력:</strong> 이메일 주소를 직접 입력하여 리포트를 발송합니다.</p>
+                </div>
+            </div>
+            
+            <!-- 입력 영역 -->
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="color: #374151; font-weight: 500; min-width: 70px; font-size: 13px;">발송 대상:</label>
+                    <input type="text" id="recipientInput" placeholder="발송 모드를 선택하세요" 
+                           style="flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;" readonly>
+                </div>
+            </div>
+            
+            <!-- 발송 버튼 -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="sendReport()" id="sendReportBtn"
+                        style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px;">
+                    🚀 발송하기
+                </button>
+                <div id="sendStatus" style="font-size: 12px; flex: 1;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+            <!-- 필터 -->
+            <div class="filters" id="filters">
+                <h3>🔍 필터</h3>
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label>담당 부서</label>
+                        <select id="departmentFilter">
+                            <option value="전체">전체</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>팀</label>
+                        <select id="teamFilter">
+                            <option value="전체">전체</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>근무 유형</label>
+                        <select id="workTypeFilter">
+                            <option value="전체">전체</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>근무조</label>
+                        <select id="shiftFilter">
+                            <option value="전체">전체</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI 카드 -->
+            <div class="kpi-grid" id="kpiGrid">
+                <!-- KPI 카드들이 동적으로 생성됩니다 -->
+            </div>
+
+            <!-- 차트 -->
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>📊 부서별 인당 평균 근무시간</h3>
+                    <div class="chart-container">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>🥧 근무 유형 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="workTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-card" style="margin-bottom: 30px;">
+                <h3>📈 팀별 평균 근무시간</h3>
+                <div class="chart-container">
+                    <canvas id="teamChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 관리 필요 대상자 테이블 -->
+            <div class="management-table" id="managementTable">
+                <h3>⚠️ 관리 필요 대상자 <span id="managementCount" style="background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 12px; font-size: 12px;"></span></h3>
+                
+                <div class="legend-grid">
+                    <div class="legend-section">
+                        <h5 style="color: #dc2626;">🔴 위험 등급</h5>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #dc2626;"></div>
+                            <span>과로위험 (9시간+)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #dc2626;"></div>
+                            <span>법정시간초과 (주52시간+)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #dc2626;"></div>
+                            <span>연속근무 (휴일없이)</span>
+                        </div>
+                    </div>
+                    <div class="legend-section">
+                        <h5 style="color: #d97706;">🟡 경고 등급</h5>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #d97706;"></div>
+                            <span>저성과위험 (6시간-)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #d97706;"></div>
+                            <span>과도한야간근무 (30%+)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #d97706;"></div>
+                            <span>불규칙근무패턴</span>
+                        </div>
+                    </div>
+                    <div class="legend-section">
+                        <h5 style="color: #2563eb;">🟠 주의 등급</h5>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #2563eb;"></div>
+                            <span>휴게시간부족 (0.5시간-)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #2563eb;"></div>
+                            <span>과도한재택/출장</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="managementTableBody">
+                        <thead>
+                            <tr>
+                                <th>상태</th>
+                                <th>사번</th>
+                                <th>이름</th>
+                                <th>담당</th>
+                                <th>팀명</th>
+                                <th>근무시간(일/주)</th>
+                                <th>관리 사유</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 동적으로 생성 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let originalData = [];
+        let filteredData = [];
+        let charts = {};
+
+        // 파일 업로드 이벤트
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('uploadArea').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        // 드래그 앤 드롭
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('uploadArea').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    if (file.name.endsWith('.csv')) {
+                        const csvText = e.target.result;
+                        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                        data = parsed.data;
+                    } else {
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        data = XLSX.utils.sheet_to_json(worksheet);
+                    }
+
+                    originalData = data;
+                    filteredData = [...originalData];
+                    
+                    setTimeout(() => {
+                        initializeDashboard();
+                    }, 1000);
+                } catch (error) {
+                    alert('파일을 처리하는 중 오류가 발생했습니다: ' + error.message);
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('uploadArea').style.display = 'block';
+                }
+            };
+
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function initializeDashboard() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('filters').style.display = 'block';
+
+
+                document.getElementById('reportSender').style.display = 'block';  // 이 줄 추가!
+
+                
+
+            setupFilters();
+            updateDashboard();
+
+
+            
+                updateRecipientInput('manager');  // 이 줄도 추가!
+
+
+
+        }
+
+        function setupFilters() {
+            const departments = [...new Set(originalData.map(item => item.담당 || item.department).filter(Boolean))];
+            const teams = [...new Set(originalData.map(item => item.팀명 || item.team).filter(Boolean))];
+            const workTypes = [...new Set(originalData.map(item => item.근무유형 || item.work_type).filter(Boolean))];
+            const shifts = [...new Set(originalData.map(item => item.근무조 || item.shift).filter(Boolean))];
+
+            populateSelect('departmentFilter', departments);
+            populateSelect('teamFilter', teams);
+            populateSelect('workTypeFilter', workTypes);
+            populateSelect('shiftFilter', shifts);
+
+            // 필터 이벤트 리스너
+            document.getElementById('departmentFilter').addEventListener('change', onDepartmentChange);
+            document.getElementById('teamFilter').addEventListener('change', applyFilters);
+            document.getElementById('workTypeFilter').addEventListener('change', applyFilters);
+            document.getElementById('shiftFilter').addEventListener('change', applyFilters);
+        }
+
+        function onDepartmentChange() {
+            const selectedDepartment = document.getElementById('departmentFilter').value;
+            
+            // 선택된 부서에 해당하는 팀들 필터링
+            let teams = [];
+            if (selectedDepartment === '전체') {
+                teams = [...new Set(originalData.map(item => item.팀명 || item.team).filter(Boolean))];
+            } else {
+                teams = [...new Set(originalData
+                    .filter(item => (item.담당 || item.department) === selectedDepartment)
+                    .map(item => item.팀명 || item.team)
+                    .filter(Boolean))];
+            }
+            
+            // 팀 드롭다운 업데이트
+            populateSelect('teamFilter', teams);
+            
+            // 필터 적용
+            applyFilters();
+        }
+
+        function populateSelect(selectId, options) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '<option value="전체">전체</option>';
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                select.appendChild(optionElement);
+            });
+        }
+
+        function applyFilters() {
+            const deptFilter = document.getElementById('departmentFilter').value;
+            const teamFilter = document.getElementById('teamFilter').value;
+            const workTypeFilter = document.getElementById('workTypeFilter').value;
+            const shiftFilter = document.getElementById('shiftFilter').value;
+
+            filteredData = originalData.filter(item => {
+                const dept = item.담당 || item.department;
+                const team = item.팀명 || item.team;
+                const workType = item.근무유형 || item.work_type;
+                const shift = item.근무조 || item.shift;
+
+                return (deptFilter === '전체' || dept === deptFilter) &&
+                       (teamFilter === '전체' || team === teamFilter) &&
+                       (workTypeFilter === '전체' || workType === workTypeFilter) &&
+                       (shiftFilter === '전체' || shift === shiftFilter);
+            });
+
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            updateKPIs();
+            updateCharts();
+            updateManagementTable();
+        }
+
+        function updateKPIs() {
+            const totalRecords = filteredData.length;
+            const totalEmployees = new Set(filteredData.map(item => item.사번 || item.employee_id)).size;
+            const totalDepartments = new Set(filteredData.map(item => item.담당 || item.department)).size;
+            const totalTeams = new Set(filteredData.map(item => item.팀명 || item.team)).size;
+            const avgWorkHours = filteredData.reduce((sum, item) => sum + parseFloat(item.근무시간 || item.work_hours || 0), 0) / totalRecords;
+            const managementNeeded = analyzeManagementNeeded(filteredData);
+
+            const kpis = [
+                { label: '총 근무기록', value: totalRecords.toLocaleString(), icon: '👥', color: '#3b82f6' },
+                { label: '총 직원수', value: totalEmployees, icon: '🏢', color: '#10b981' },
+                { label: '평균 근무시간', value: `${Math.round(avgWorkHours * 10) / 10}h`, icon: '⏰', color: '#f59e0b' },
+                { label: '활성 팀수', value: totalTeams, icon: '🎯', color: '#8b5cf6' },
+                { label: '관리 필요', value: managementNeeded.length, icon: '⚠️', color: '#ef4444' }
+            ];
+
+            const kpiGrid = document.getElementById('kpiGrid');
+            kpiGrid.innerHTML = '';
+
+            kpis.forEach(kpi => {
+                const kpiCard = document.createElement('div');
+                kpiCard.className = 'kpi-card';
+                kpiCard.innerHTML = `
+                    <div class="kpi-icon" style="background: ${kpi.color}20; color: ${kpi.color};">
+                        ${kpi.icon}
+                    </div>
+                    <div class="kpi-content">
+                        <h4>${kpi.label}</h4>
+                        <div class="value" style="color: ${kpi.color};">${kpi.value}</div>
+                    </div>
+                `;
+                kpiGrid.appendChild(kpiCard);
+            });
+        }
+
+        function updateCharts() {
+            // 부서별 인당 평균 근무시간
+            const departmentStats = calculateDepartmentStats(filteredData);
+            createBarChart('departmentChart', 
+                departmentStats.map(d => d.department),
+                departmentStats.map(d => d.avgHoursPerEmployee),
+                '인당 평균 시간'
+            );
+
+            // 근무 유형 분포
+            const workTypeStats = calculateWorkTypeStats(filteredData);
+            createPieChart('workTypeChart', 
+                workTypeStats.map(w => w.workType),
+                workTypeStats.map(w => w.count)
+            );
+
+            // 팀별 평균 근무시간
+            const teamStats = calculateTeamStats(filteredData);
+            createBarChart('teamChart', 
+                teamStats.map(t => t.team),
+                teamStats.map(t => t.avgHours),
+                '평균 시간'
+            );
+        }
+
+        function createBarChart(canvasId, labels, data, label) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#2563eb',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPieChart(canvasId, labels, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
+
+            charts[canvasId] = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateManagementTable() {
+            const managementNeeded = analyzeManagementNeeded(filteredData);
+            
+            if (managementNeeded.length > 0) {
+                document.getElementById('managementTable').style.display = 'block';
+                document.getElementById('managementCount').textContent = `${managementNeeded.length}명`;
+
+                const tbody = document.getElementById('managementTableBody').querySelector('tbody');
+                tbody.innerHTML = '';
+
+                managementNeeded.forEach(emp => {
+                    const row = document.createElement('tr');
+                    const statusIcon = emp.status === 'danger' ? '🔴' : '🟡';
+                    const statusClass = emp.status === 'danger' ? 'status-danger' : 'status-warning';
+                    
+                    const reasonTags = emp.reasons.map(reason => {
+                        let tagClass = 'reason-info';
+                        if (['과로위험', '법정시간초과', '연속근무'].includes(reason)) {
+                            tagClass = 'reason-danger';
+                        } else if (['저성과위험', '과도한야간근무', '불규칙근무패턴'].includes(reason)) {
+                            tagClass = 'reason-warning';
+                        }
+                        return `<span class="reason-tag ${tagClass}">${reason}</span>`;
+                    }).join('');
+
+                    row.innerHTML = `
+                        <td><span class="${statusClass}">${statusIcon}</span></td>
+                        <td>${emp.사번}</td>
+                        <td>${emp.이름}</td>
+                        <td>${emp.담당}</td>
+                        <td>${emp.팀명}</td>
+                        <td>${emp.avgDailyHours}시간 / 주${emp.weeklyHours}시간</td>
+                        <td>${reasonTags}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                document.getElementById('managementTable').style.display = 'none';
+            }
+        }
+
+        // 데이터 분석 함수들
+        function parseNumber(str) {
+            const num = parseFloat(str);
+            return isNaN(num) ? 0 : num;
+        }
+
+        function parseTime(timeStr) {
+            if (!timeStr) return null;
+            try {
+                const date = new Date(timeStr);
+                return date.getHours();
+            } catch {
+                return null;
+            }
+        }
+
+        function analyzeManagementNeeded(data) {
+            const employeeStats = {};
+            
+            data.forEach(item => {
+                const empId = item.사번 || item.employee_id;
+                const empName = item.이름 || item.name || item.employee_name;
+                const department = item.담당 || item.department;
+                const team = item.팀명 || item.team;
+                const workType = item.근무유형 || item.work_type;
+                const workHours = parseNumber(item.근무시간 || item.work_hours);
+                const restTime = parseNumber(item.휴게시간 || item.rest_time);
+                const startTime = parseTime(item.시작시간 || item.start_time);
+
+                if (!empId || !workHours) return;
+
+                if (!employeeStats[empId]) {
+                    employeeStats[empId] = {
+                        사번: empId, 이름: empName, 담당: department, 팀명: team,
+                        totalHours: 0, totalDays: 0, workTypes: {},
+                        nightShifts: 0, workHours: [], restTimes: [], reasons: []
+                    };
+                }
+
+                const emp = employeeStats[empId];
+                emp.totalHours += workHours;
+                emp.totalDays += 1;
+                emp.workTypes[workType] = (emp.workTypes[workType] || 0) + 1;
+
+                if (startTime !== null && (startTime >= 22 || startTime <= 6)) {
+                    emp.nightShifts += 1;
+                }
+                
+                emp.workHours.push(workHours);
+                if (restTime > 0) emp.restTimes.push(restTime);
+            });
+
+            const needsManagement = [];
+
+            Object.values(employeeStats).forEach(emp => {
+                const avgDailyHours = emp.totalHours / emp.totalDays;
+                const weeklyHours = avgDailyHours * 7;
+
+                if (avgDailyHours >= 9) { emp.reasons.push('과로위험'); emp.status = 'danger'; }
+                if (avgDailyHours < 6) { emp.reasons.push('저성과위험'); emp.status = 'warning'; }
+                if (weeklyHours > 52) { emp.reasons.push('법정시간초과'); emp.status = 'danger'; }
+
+                const nightShiftRatio = emp.nightShifts / emp.totalDays;
+                if (nightShiftRatio >= 0.3) { emp.reasons.push('과도한야간근무'); emp.status = emp.status || 'warning'; }
+
+                if (emp.workHours.length > 1) {
+                    const mean = emp.workHours.reduce((sum, h) => sum + h, 0) / emp.workHours.length;
+                    const variance = emp.workHours.reduce((sum, h) => sum + Math.pow(h - mean, 2), 0) / emp.workHours.length;
+                    if (Math.sqrt(variance) > 2) { emp.reasons.push('불규칙근무패턴'); emp.status = emp.status || 'warning'; }
+                }
+
+                if (emp.restTimes.length > 0) {
+                    const avgRestTime = emp.restTimes.reduce((sum, t) => sum + t, 0) / emp.restTimes.length;
+                    if (avgRestTime < 0.5) { emp.reasons.push('휴게시간부족'); emp.status = emp.status || 'warning'; }
+                }
+
+                const remoteDays = emp.workTypes['재택'] || emp.workTypes['remote'] || 0;
+                if ((remoteDays / emp.totalDays) >= 0.8) { emp.reasons.push('과도한재택'); emp.status = emp.status || 'warning'; }
+
+                const businessTripDays = emp.workTypes['출장'] || emp.workTypes['business_trip'] || 0;
+                if ((businessTripDays / emp.totalDays) >= 0.5) { emp.reasons.push('과도한출장'); emp.status = emp.status || 'warning'; }
+
+                emp.avgDailyHours = Math.round(avgDailyHours * 10) / 10;
+                emp.weeklyHours = Math.round(weeklyHours * 10) / 10;
+
+                if (emp.reasons.length > 0) {
+                    needsManagement.push(emp);
+                }
+            });
+
+            return needsManagement.sort((a, b) => b.avgDailyHours - a.avgDailyHours);
+        }
+
+        function calculateDepartmentStats(data) {
+            const deptData = {};
+            
+            data.forEach(item => {
+                const dept = item.담당 || item.department;
+                const empId = item.사번 || item.employee_id;
+                const workHours = parseNumber(item.근무시간 || item.work_hours);
+
+                if (dept && empId && workHours) {
+                    if (!deptData[dept]) deptData[dept] = {};
+                    if (!deptData[dept][empId]) deptData[dept][empId] = 0;
+                    deptData[dept][empId] += workHours;
+                }
+            });
+
+            return Object.entries(deptData).map(([dept, employees]) => {
+                const totalHours = Object.values(employees).reduce((sum, hours) => sum + hours, 0);
+                const employeeCount = Object.keys(employees).length;
+                return {
+                    department: dept,
+                    avgHoursPerEmployee: Math.round((totalHours / employeeCount) * 10) / 10
+                };
+            });
+        }
+
+        function calculateWorkTypeStats(data) {
+            const workTypeStats = {};
+            
+            data.forEach(item => {
+                const workType = item.근무유형 || item.work_type;
+                if (workType) {
+                    workTypeStats[workType] = (workTypeStats[workType] || 0) + 1;
+                }
+            });
+
+            return Object.entries(workTypeStats).map(([type, count]) => ({
+                workType: type,
+                count: count
+            }));
+        }
+
+        function calculateTeamStats(data) {
+            const teamData = {};
+            
+            data.forEach(item => {
+                const team = item.팀명 || item.team;
+                const workHours = parseNumber(item.근무시간 || item.work_hours);
+
+                if (team && workHours) {
+                    if (!teamData[team]) teamData[team] = { total: 0, count: 0 };
+                    teamData[team].total += workHours;
+                    teamData[team].count += 1;
+                }
+            });
+
+            return Object.entries(teamData).map(([team, data]) => ({
+                team: team,
+                avgHours: Math.round((data.total / data.count) * 10) / 10
+            }));
+        }
+    </script>
+
+
+
+
+
+
+
+
+
+<!-- 기존 HTML의 대시보드 영역 아래에 추가할 코드 -->
+
+
+
+
+
+
+
+
+
+<script>
+// 기존 JavaScript 코드 끝에 추가할 함수들
+
+async function sendReportByEmail() {
+    const recipientEmail = document.getElementById('recipientEmail').value;
+    const statusDiv = document.getElementById('emailStatus');
+    const sendBtn = document.getElementById('sendEmailBtn');
+    
+    // 이메일 주소 확인
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+        statusDiv.innerHTML = '<span style="color: #dc2626;">⚠️ 올바른 이메일 주소를 입력해주세요.</span>';
+        return;
+    }
+    
+    // 대시보드가 로드되었는지 확인
+    if (!filteredData || filteredData.length === 0) {
+        statusDiv.innerHTML = '<span style="color: #dc2626;">⚠️ 먼저 Excel 파일을 업로드하여 분석해주세요.</span>';
+        return;
+    }
+    
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '⏳ 전송 중...';
+    statusDiv.innerHTML = '<span style="color: #3b82f6;">📤 리포트를 생성하여 전송 중입니다...</span>';
+    
+    try {
+        // 현재 대시보드 데이터 수집
+        const reportData = generateReportData();
+        
+        // n8n webhook으로 데이터 전송
+        const response = await fetch('https://roka1511898.app.n8n.cloud/webhook-test/send-dashboard-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                recipient: recipientEmail,
+                reportData: reportData,
+                timestamp: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) {
+            statusDiv.innerHTML = `<span style="color: #10b981;">✅ ${recipientEmail}로 리포트가 성공적으로 전송되었습니다!</span>`;
+        } else {
+            throw new Error('전송 실패');
+        }
+        
+    } catch (error) {
+        console.error('이메일 전송 오류:', error);
+        statusDiv.innerHTML = '<span style="color: #dc2626;">❌ 전송 중 오류가 발생했습니다. 다시 시도해주세요.</span>';
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '📤 리포트 발송';
+    }
+}
+
+function generateReportData() {
+    // 현재 표시된 KPI 데이터 수집
+    const kpiCards = document.querySelectorAll('.kpi-card');
+    const kpis = Array.from(kpiCards).map(card => {
+        const label = card.querySelector('h4')?.textContent || '';
+        const value = card.querySelector('.value')?.textContent || '';
+        return { label, value };
+    });
+    
+    // 관리 필요 대상자 데이터 수집
+    const managementRows = document.querySelectorAll('#managementTableBody tbody tr');
+    const managementList = Array.from(managementRows).map(row => {
+        const cells = row.querySelectorAll('td');
+        return {
+            status: cells[0]?.textContent.trim() || '',
+            empId: cells[1]?.textContent || '',
+            name: cells[2]?.textContent || '',
+            department: cells[3]?.textContent || '',
+            team: cells[4]?.textContent || '',
+            workHours: cells[5]?.textContent || '',
+            reasons: cells[6]?.textContent || ''
+        };
+    });
+    
+    // 부서별 통계 (차트 데이터 활용)
+    const departmentStats = calculateDepartmentStats(filteredData);
+    const teamStats = calculateTeamStats(filteredData);    
+    const workTypeStats = calculateWorkTypeStats(filteredData);
+    
+    return {
+        summary: {
+            totalRecords: filteredData.length,
+            totalEmployees: new Set(filteredData.map(item => item.사번 || item.employee_id)).size,
+            averageWorkHours: filteredData.reduce((sum, item) => sum + parseFloat(item.근무시간 || item.work_hours || 0), 0) / filteredData.length
+        },
+        kpis: kpis,
+        managementNeeded: managementList,
+        departmentStats: departmentStats,
+        teamStats: teamStats,
+        workTypeStats: workTypeStats,
+        filters: {
+            department: document.getElementById('departmentFilter').value,
+            team: document.getElementById('teamFilter').value,
+            workType: document.getElementById('workTypeFilter').value,
+            shift: document.getElementById('shiftFilter').value
+        }
+    };
+}
+
+
+
+
+
+
+
+
+
+
+// === 리포트 발송 기능 ===
+let currentSendMode = 'manager';
+
+// 이메일 매핑 테이블
+const emailMapping = {
+    // 담당자 이메일
+    manager: {
+        '기술담당': 'abc@naver.com',
+        '영업담당': 'bbb@naver.com', 
+        '관리담당': 'ccc@naver.com',
+        '인사담당': 'ddd@naver.com',
+        '재무담당': 'eee@naver.com'
+    },
+    // 팀장 이메일
+    teamLeader: {
+        '개발1팀': 'dev1-leader@naver.com',
+        '개발2팀': 'dev2-leader@naver.com',
+        '영업1팀': 'sales1-leader@naver.com',
+        '영업2팀': 'sales2-leader@naver.com',
+        '관리팀': 'admin-leader@naver.com'
+    }
+};
+
+// 이메일 주소 변환 함수
+function getEmailAddress(sendType, value) {
+    if (sendType === 'custom') {
+        return value; // 직접 입력은 그대로 사용
+    }
+    
+    const mapping = emailMapping[sendType];
+    if (mapping && mapping[value]) {
+        return mapping[value];
+    }
+    
+    // 매핑되지 않은 경우 기본 이메일 또는 에러
+    console.warn(`${sendType}에서 "${value}"에 대한 이메일 매핑을 찾을 수 없습니다.`);
+    return `${value.toLowerCase().replace(/\s/g, '')}@company.com`; // 기본값
+}
+
+function toggleReportSender() {
+    const content = document.getElementById('reportContent');
+    const toggleBtn = document.getElementById('toggleReportBtn');
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggleBtn.textContent = '접기';
+    } else {
+        content.style.display = 'none';
+        toggleBtn.textContent = '펼치기';
+    }
+}
+
+function switchSendMode(mode) {
+    currentSendMode = mode;
+    
+    // 모든 버튼 초기화
+    document.querySelectorAll('.ribbon-btn').forEach(btn => {
+        btn.style.background = 'transparent';
+        btn.style.color = '#6b7280';
+    });
+    
+    // 모든 설명 숨기기
+    document.querySelectorAll('#modeDescription > div').forEach(desc => {
+        desc.style.display = 'none';
+    });
+    
+    // 선택된 버튼 활성화
+    const activeBtn = document.getElementById(mode + 'SendBtn');
+    activeBtn.style.background = 'white';
+    activeBtn.style.color = '#374151';
+    
+    // 해당 설명 표시
+    if (mode === 'manager') {
+        document.getElementById('managerDesc').style.display = 'block';
+    } else if (mode === 'teamLeader') {
+        document.getElementById('teamLeaderDesc').style.display = 'block';
+    } else {
+        document.getElementById('customDesc').style.display = 'block';
+    }
+    
+    updateRecipientInput(mode);
+}
+
+function updateRecipientInput(mode) {
+    const input = document.getElementById('recipientInput');
+    
+    if (mode === 'manager') {
+        const dept = document.getElementById('departmentFilter').value;
+        if (dept !== '전체') {
+            const email = getEmailAddress('manager', dept);
+            input.value = email;
+            input.placeholder = '선택된 부서 담당자';
+            input.style.background = '#f8f9fa';
+            input.style.color = '#374151';
+        } else {
+            input.value = '';
+            input.placeholder = '부서를 선택하세요';
+            input.style.background = '#fef2f2';
+            input.style.color = '#dc2626';
+        }
+        input.readOnly = true;
+        
+    } else if (mode === 'teamLeader') {
+        const team = document.getElementById('teamFilter').value;
+        if (team !== '전체') {
+            const email = getEmailAddress('teamLeader', team);
+            input.value = email;
+            input.placeholder = '선택된 팀 팀장';
+            input.style.background = '#f8f9fa';
+            input.style.color = '#374151';
+        } else {
+            input.value = '';
+            input.placeholder = '팀을 선택하세요';
+            input.style.background = '#fef2f2';
+            input.style.color = '#dc2626';
+        }
+        input.readOnly = true;
+        
+    } else {
+        input.value = '';
+        input.placeholder = '이메일 주소를 직접 입력하세요';
+        input.style.background = 'white';
+        input.style.color = '#374151';
+        input.readOnly = false;
+    }
+}
+
+async function sendReport() {
+    const input = document.getElementById('recipientInput');
+    const statusDiv = document.getElementById('sendStatus');
+    const sendBtn = document.getElementById('sendReportBtn');
+    
+    if (!input.value.trim()) {
+        statusDiv.innerHTML = '<span style="color: red;">발송 대상을 입력하세요</span>';
+        return;
+    }
+    
+    if (currentSendMode === 'custom' && !input.value.includes('@')) {
+        statusDiv.innerHTML = '<span style="color: red;">올바른 이메일 주소를 입력하세요</span>';
+        return;
+    }
+    
+    // 이제 input에 이미 실제 이메일이 들어있으므로 그대로 사용
+    const actualEmail = input.value;
+    
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '전송 중...';
+    statusDiv.innerHTML = `<span style="color: blue;">${actualEmail}로 전송 중입니다...</span>`;
+    
+    try {
+
+
+
+        // 현재 대시보드 데이터 수집
+        const reportData = generateReportData();
+        
+        // n8n webhook으로 데이터 전송
+        const response = await fetch('https://roka1511898.app.n8n.cloud/webhook-test/send-dashboard-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                recipient: actualEmail,
+                reportData: reportData,
+                timestamp: new Date().toISOString()
+            })
+        });
+
+
+
+
+        // 간단한 리포트 데이터 수집
+        const kpiCards = document.querySelectorAll('.kpi-card .value');
+        const managementCount = document.getElementById('managementCount')?.textContent || '0';
+        
+
+        
+        
+        if (response.ok) {
+            statusDiv.innerHTML = `<span style="color: green;">${actualEmail}로 전송 완료!</span>`;
+            if (currentSendMode === 'custom') input.value = '';
+        } else {
+            throw new Error('전송 실패');
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = '<span style="color: red;">전송 실패: ' + error.message + '</span>';
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '발송하기';
+        setTimeout(() => statusDiv.innerHTML = '', 5000);
+    }
+}
+
+
+
+
+
+
+</script>
+</body>
+</html>
